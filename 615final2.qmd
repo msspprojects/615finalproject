@@ -1,6 +1,6 @@
 ---
 title: "615finalproject"
-format: revealjs
+format: pptx
 editor: visual
 ---
 
@@ -10,11 +10,13 @@ library(dplyr)
 library(ggplot2)
 library(tseries)
 library(forecast)
+library(gridExtra)
 ```
 
-
 ## Modeling and Projection
+
 ### Graphing and Test for Stationarity for Iceland GDP
+
 ```{r}
 # Data Cleaning
 icelanddata <- wb_data(country = "ISL", 
@@ -23,6 +25,7 @@ icelanddata <- icelanddata %>%
   select(-iso2c, -iso3c)
 colnames(icelanddata)[colnames(icelanddata) == "NY.GDP.MKTP.CD"] <- "GDP"
 colnames(icelanddata)[colnames(icelanddata) == "SP.POP.TOTL"] <- "Population"
+
 ```
 
 ```{r, message=FALSE}
@@ -32,22 +35,28 @@ ggplot(icelanddata, aes(x = date, y = GDP)) +
   geom_smooth(method = "loess", se = FALSE, color = "red") +
   labs(title = "Iceland GDP Plot", x = "Time", y = "GDP")
 ```
+
 ## Result of ADF test for GDP
+
 ```{r}
 adf_test <- adf.test(icelanddata$GDP)
 print(adf_test)
 ```
+
 Based on the result shown above, the series is not stationary, some transformations need to be done to make the series stationary so it satisfies the assumption of time series model.
 
 ## Perform Differencing and Check Stationarity
+
 ```{r, warning=FALSE}
 diff_gdp <- diff(icelanddata$GDP)
 adf.test(diff_gdp)
 plot(diff_gdp, type = "l", main = "Differenced GDP Series")
 ```
+
 Based on the ADF test result above, the p-value is 0.01, so we can reject the null hypothesis, showing that the series is stationary.
 
 ## Plot ACF and PACF for GDP
+
 ```{r}
 par(mfrow = c(1, 2))
 
@@ -57,16 +66,20 @@ pacf(diff_gdp, main = "PACF of diff_gdp")
 
 par(mfrow = c(1, 1))
 ```
+
 Based on the plot above, both ACF and PACF have significant spike at lag order 1, and since there is first order differencing performed on GDP data, the first model to try is ARIMA(1, 1, 1).
 
 ## Fit ARIMA(1, 1, 1) Model
+
 ```{r}
 model <- arima(diff_gdp, order = c(1, 1, 1))
 checkresiduals(model)
 ```
+
 Based on the Ljung-Box test result, p-value is greater than 0.05, indicating that there is no significant autocorrelation between residuals, and the residuals behave like white noise. Based on the ACF plot in the lower left part, most of the spikes are not statistically significant, suggesting again no autocorrelation between residuals. The histogram on the lower right shows the normality of residuals. Based on the model diagnostics above, ARIMA(1, 1, 1) model can be used to predict the GDP in Iceland.
 
 ## Forecast the GDP for Next 15 Years Based on ARIMA(1, 1, 1)
+
 ```{r}
 forecast_values <- forecast(model, h = 15)
 
@@ -88,3 +101,47 @@ ggplot(data, aes(x = Time, y = Value, color = Type)) +
   theme_minimal()
 ```
 Based on the forecast values above, the GDP is predicted to decrease and become gradually stable at around $700,000,000 per year.
+
+```{r}
+greenland_data <- wb_data(
+  indicator = c("NY.GDP.MKTP.CD", "SP.POP.TOTL"),  # GDP and Population
+  country = "GRL",  # Greenland
+)
+
+greenland_data <- greenland_data %>%
+  select(-iso2c, -iso3c)
+
+colnames(greenland_data)[colnames(greenland_data) == "NY.GDP.MKTP.CD"] <- "GDP"
+colnames(greenland_data)[colnames(greenland_data) == "SP.POP.TOTL"] <- "Population"
+# View the data
+head(greenland_data)
+```
+```{r, warning=FALSE}
+
+combined_data <- bind_rows(greenland_data, icelanddata)
+
+gdp_plot <- ggplot(combined_data, aes(x = date, y = GDP, color = country)) +
+  geom_line(size = 1) +
+  labs(
+    title = "GDP Comparison",
+    x = "Year",
+    y = "GDP (USD)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+population_plot <- ggplot(combined_data, aes(x = date, y = Population, color = country)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Population Comparison",
+    x = "Year",
+    y = "Population"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+grid.arrange(gdp_plot, population_plot, ncol = 2)
+
+```
+Based on the comparison above, for both GDP, Greenland and Iceland almost started at the same point, but the growth rate for Iceland over the years is much higher than Greenland. For population data, Greenland has a lot lower population than Iceland. For both GDP and population, Greenland's data almost did not change in the past 60 years compared to the growth of Iceland.
+other comparison: unemployment, life expectancy, health expenditure, government expenditure on education, show the map of both iceland and greenland

@@ -89,8 +89,28 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "population",
-        h3("Projection of Iceland GDP Data", style = "color: #007bff;"),
-        img(src = "gdpdata.png", width = "80%")
+        tabsetPanel(
+          tabPanel("Iceland GDP Data Plot",
+                   tags$img(src = "gdpdata.png", width = "80%"),
+                   tags$img(src = "adftest1.png", width = "80%"),
+                   p("From the plot, it can be seen that the GDP has an obvious upward trend for the last 60 years, and its trend is similar to an exponential function."),
+                   p("Also, based on the ADF test result, p-value is larger than 0.05, indicating the series is not statistically significant, and some transformations need to be done.")),
+          tabPanel("GDP Data After Differencing",
+                   tags$img(src = "gdp2.png", width = "80%"),
+                   tags$img(src = "adftest2.png", width = "80%"),
+                   p("Based on the ADF test result above, the p-value is 0.01, so we can reject the null hypothesis, showing that the series is stationary.")),
+          tabPanel("ACF and PACF for New GDP Data",
+                   tags$img(src = "acfpacf.png", width = "80%"),
+                   p("Based on the plot above, both ACF and PACF have significant spike at lag order 1, and since there is first order differencing performed on GDP data, the first model to try is ARIMA(1, 1, 1).")),
+          tabPanel("Assess Model Fit",
+                   tags$img(src = "modelfit.png", width = "80%"),
+                   tags$img(src = "ljungboxtest.png", width = "80%"),
+                   p("Based on the Ljung-Box test result, p-value is greater than 0.05, indicating that there is no significant autocorrelation between residuals, and the residuals behave like white noise. Based on the ACF plot in the lower left part, most of the spikes are not statistically significant, suggesting again no autocorrelation between residuals. The histogram on the lower right shows the normality of residuals. Based on the model diagnostics above, ARIMA(1, 1, 1) model can be used to predict the GDP in Iceland.")),
+          tabPanel("Population Prediction",
+                   tags$img(src = "prediction.png", width = "80%"),
+                   p("Based on the forecast values above, the GDP is predicted to decrease and become gradually stable at around $700,000,000 per year for the next 15 years."))
+        )
+        
       ),
       tabItem(
         tabName = "comparison",
