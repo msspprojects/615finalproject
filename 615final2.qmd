@@ -1,7 +1,8 @@
 ---
-title: "615finalproject"
+title: "Exploration of Iceland"
 format: pptx
 editor: visual
+author: Suheng Yao
 ---
 
 ```{r, include=FALSE}
@@ -13,22 +14,31 @@ library(forecast)
 library(gridExtra)
 ```
 
-## Modeling and Projection
+# Introduction to Iceland
 
-### Graphing and Test for Stationarity for Iceland GDP
+Iceland is a Nordic island country between the North Atlantic and Arctic Oceans, on the Mid-Atlantic Ridge between North America and Europe. Its capital and largest city is Reykjavík, which is home to about 36% of the country's roughly 380,000 residents. 86% of the residents are Icelanders. The official language of the country is Icelandic. The government structure is unitary parliamentry republic, which means that political power is entrusted to the parliament with confidence.
 
-```{r}
+Iceland is on a rift between tectonic plates, and its geologic activity includes geysers and frequent volcanic eruptions. The interior consists of a volcanic plateau with sand and lava fields, mountains and glaciers, and many glacial rivers flow to the sea through the lowlands.
+
+In 2022, Iceland was the eighth-most productive country in the world per capita (US$78,837). About 85 percent of the total primary energy supply in Iceland is derived from domestically produced renewable energy sources. The economy now in Iceland is more dependent on tourism, and other important sectors are: fish and fish products, aluminium, and ferrosilicon.
+
+# Modeling and Projection of GDP
+## Graphing and Testing for Stationarity for Iceland GDP
+
+```{r, echo=FALSE}
 # Data Cleaning
 icelanddata <- wb_data(country = "ISL", 
-                       indicator = c("SP.POP.TOTL", "NY.GDP.MKTP.CD"))
+                       indicator = c("SP.POP.TOTL", "NY.GDP.MKTP.CD", "SP.DYN.LE00.IN", "VC.IHR.PSRC.P5"))
 icelanddata <- icelanddata %>%
   select(-iso2c, -iso3c)
 colnames(icelanddata)[colnames(icelanddata) == "NY.GDP.MKTP.CD"] <- "GDP"
 colnames(icelanddata)[colnames(icelanddata) == "SP.POP.TOTL"] <- "Population"
+colnames(icelanddata)[colnames(icelanddata) == "SP.DYN.LE00.IN"] <- "Life Expectancy"
+colnames(icelanddata)[colnames(icelanddata) == "VC.IHR.PSRC.P5"] <- "Intentional Homicide"
 
 ```
 
-```{r, message=FALSE}
+```{r, message=FALSE, echo=FALSE}
 # Ensure the time variable is in the correct format
 ggplot(icelanddata, aes(x = date, y = GDP)) +
   geom_line(color = "blue") +
@@ -38,7 +48,7 @@ ggplot(icelanddata, aes(x = date, y = GDP)) +
 
 ## Result of ADF test for GDP
 
-```{r}
+```{r, echo=FALSE}
 adf_test <- adf.test(icelanddata$GDP)
 print(adf_test)
 ```
@@ -47,7 +57,8 @@ Based on the result shown above, the series is not stationary, some transformati
 
 ## Perform Differencing and Check Stationarity
 
-```{r, warning=FALSE}
+We can plot the time series after differencing and apply ADF test again:
+```{r, warning=FALSE, echo=FALSE}
 diff_gdp <- diff(icelanddata$GDP)
 adf.test(diff_gdp)
 plot(diff_gdp, type = "l", main = "Differenced GDP Series")
@@ -57,7 +68,7 @@ Based on the ADF test result above, the p-value is 0.01, so we can reject the nu
 
 ## Plot ACF and PACF for GDP
 
-```{r}
+```{r, echo=FALSE}
 par(mfrow = c(1, 2))
 
 acf(diff_gdp, main = "ACF of diff_gdp")
@@ -71,7 +82,7 @@ Based on the plot above, both ACF and PACF have significant spike at lag order 1
 
 ## Fit ARIMA(1, 1, 1) Model
 
-```{r}
+```{r, echo=FALSE}
 model <- arima(diff_gdp, order = c(1, 1, 1))
 checkresiduals(model)
 ```
@@ -79,8 +90,7 @@ checkresiduals(model)
 Based on the Ljung-Box test result, p-value is greater than 0.05, indicating that there is no significant autocorrelation between residuals, and the residuals behave like white noise. Based on the ACF plot in the lower left part, most of the spikes are not statistically significant, suggesting again no autocorrelation between residuals. The histogram on the lower right shows the normality of residuals. Based on the model diagnostics above, ARIMA(1, 1, 1) model can be used to predict the GDP in Iceland.
 
 ## Forecast the GDP for Next 15 Years Based on ARIMA(1, 1, 1)
-
-```{r}
+```{r, echo=FALSE, warning=FALSE}
 forecast_values <- forecast(model, h = 15)
 
 time_series <- ts(diff_gdp, frequency = 1)
@@ -102,23 +112,27 @@ ggplot(data, aes(x = Time, y = Value, color = Type)) +
 ```
 Based on the forecast values above, the GDP is predicted to decrease and become gradually stable at around $700,000,000 per year.
 
-```{r}
-greenland_data <- wb_data(
-  indicator = c("NY.GDP.MKTP.CD", "SP.POP.TOTL"),  # GDP and Population
+# Comparison with Greenland
+
+```{r, echo=FALSE}
+greenlanddata <- wb_data(
+  indicator = c("SP.POP.TOTL", "NY.GDP.MKTP.CD", "SP.DYN.LE00.IN", "VC.IHR.PSRC.P5"),
   country = "GRL",  # Greenland
 )
 
-greenland_data <- greenland_data %>%
+greenlanddata <- greenlanddata %>%
   select(-iso2c, -iso3c)
 
-colnames(greenland_data)[colnames(greenland_data) == "NY.GDP.MKTP.CD"] <- "GDP"
-colnames(greenland_data)[colnames(greenland_data) == "SP.POP.TOTL"] <- "Population"
-# View the data
-head(greenland_data)
+colnames(greenlanddata)[colnames(greenlanddata) == "NY.GDP.MKTP.CD"] <- "GDP"
+colnames(greenlanddata)[colnames(greenlanddata) == "SP.POP.TOTL"] <- "Population"
+colnames(greenlanddata)[colnames(greenlanddata) == "SP.DYN.LE00.IN"] <- "Life Expectancy"
+colnames(greenlanddata)[colnames(greenlanddata) == "VC.IHR.PSRC.P5"] <- "Intentional Homicide"
 ```
-```{r, warning=FALSE}
 
-combined_data <- bind_rows(greenland_data, icelanddata)
+## Comparison of GDP and Population
+```{r, warning=FALSE, echo=FALSE}
+
+combined_data <- bind_rows(greenlanddata, icelanddata)
 
 gdp_plot <- ggplot(combined_data, aes(x = date, y = GDP, color = country)) +
   geom_line(size = 1) +
@@ -144,4 +158,77 @@ grid.arrange(gdp_plot, population_plot, ncol = 2)
 
 ```
 Based on the comparison above, for both GDP, Greenland and Iceland almost started at the same point, but the growth rate for Iceland over the years is much higher than Greenland. For population data, Greenland has a lot lower population than Iceland. For both GDP and population, Greenland's data almost did not change in the past 60 years compared to the growth of Iceland.
-other comparison: unemployment, life expectancy, health expenditure, government expenditure on education, show the map of both iceland and greenland
+
+## Comparison of Life Expectancy
+```{r, warning=FALSE, echo=FALSE}
+ggplot(combined_data, aes(x = date, y = `Life Expectancy`, color = country)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Life Expectancy Comparison",
+    x = "Year",
+    y = "Life(in years)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+Based on the plot above, it is clear that people in Iceland have longer life expectancy compared to people in Greenland. For the most recent data, the average life expectancy of Iceland is 82 years old, compared to 72 years old in Greenland.
+
+## Comparison of Intentional Homicide
+```{r, warning=FALSE, echo=FALSE}
+ggplot(combined_data, aes(x = date, y = `Intentional Homicide`, color = country)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Homicides Comparison",
+    x = "Year",
+    y = "Number of Homicides(per 100000 people)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+Based on the graph above, Greenland obviously has more violence incidences than Iceland for the past 60 years, reaching even 30 cases per 100000 people at around 2000, about 30 times the number of cases in Iceland. For the most recent data, in 2016, Greenland has 5 cases of homicide per 100000 people, while Iceland only has one case.
+
+# SWOT Analysis
+## Strength
+
+Based on the GDP analysis above, Iceland GDP continues increasing, suggesting the economic prosperity. Also, based on the CIA World Factbook, Iceland is ranked 20th for GDP per capita across all countries in the world.
+
+Based on the life expectancy analysis before, the mean life expectancy of people in Iceland is 82, suggesting the overall better life quality and healthcare for old people. Additionally, according to CIA World Factbook, Iceland's urbanization rate is 94%, reflecting the focus on economic activities, such as service, tourism and technology.
+
+Based on the CIA World Book, 70% of the country's electricity comes from hydroeletricity, and 20% comes from geothermal energy, making Iceland a global leader in sustainable development.
+
+## Weakness
+
+Iceland's economy is heavily relied on the tourism and fishing, making it vulnerable to demand swings and volcanic activity.
+
+From the median age plot created by Statista, Iceland is expected to have an aging population, which may lead to shrinkage of labor force and more expenditure on healthcare.
+
+## Opportunities
+
+As previously mentioned, since Iceland relies heavily on tourism, with the recovery of economy followed by the post-pendemic era, the visitors in Iceland will increase and further boost its economy.
+
+Surprisingly, because of the cold weather in Iceland, it has become favorable place for building data center in recent years. With more big tech companies, such as Meta, Google and Apple started building data centers in Nordic countries, it can stimulate the economic growth and rapid development of Iceland.
+
+## Threat
+
+Global warming is likely to have a great impact on Iceland, since 11% of the land area of Iceland is covered in glaciers, and global warming is gradually melting those glaciers, impacting both marine life and fish industry, which is among one of major economic pillars that Iceland has.
+
+Since data centers built in Iceland are hungry for energy, this may cause shortage in electricity generation because some of the energy generated is reserved for powering electric cars. This shortage may lead to less electric cars to a turn to traditional fossil fuels to generate energy, which may further damage the environment.
+
+\newpage
+
+# Reference
+
+[1] Central Intelligence Agency. (2024, December 3). Iceland. In The World Factbook. https://www.cia.gov/the-world-factbook/countries/iceland/
+
+[2] ClimateChangePost. (n.d.). Climate change. ClimateChangePost. Retrieved December 12, 2024, from https://www.climatechangepost.com/countries/iceland/climate-change/
+
+[3] Reynolds, M. (2019, June 18). Iceland’s data centers are booming—here’s why that’s a problem. MIT Technology Review. https://www.technologyreview.com/2019/06/18/134902/icelands-data-centers-are-booming-heres-why-thats-a-problem/
+
+[4] Statista. (2024). Iceland: Average age of the population from 1950 to 2100 (median age in years) [Graph]. Statista. https://www.statista.com/statistics/398566/average-age-of-the-population-in-iceland/
+
+
+
+
+
+
+

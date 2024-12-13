@@ -4,6 +4,19 @@ library(ggplot2)
 library(dplyr)
 library(bslib)
 library(shinydashboard)
+library(geosphere)
+
+locations <- data.frame(
+  name = c("Iceland", "Reykjavik", "Greenland", "Nuuk"),
+  lat = c(64.9631, 64.1265, 71.7069, 64.1726),
+  lng = c(-19.0208, -21.8174, -42.6043, -51.7214),
+  type = c("country", "capital", "country", "capital")
+)
+reykjavik_coords <- as.numeric(locations[locations$name == "Reykjavik", c("lng", "lat")])
+nuuk_coords <- as.numeric(locations[locations$name == "Nuuk", c("lng", "lat")])
+
+distance_km <- distHaversine(reykjavik_coords, nuuk_coords) / 1000
+
 
 # UI
 ui <- dashboardPage(
@@ -112,18 +125,62 @@ ui <- dashboardPage(
         )
         
       ),
-      tabItem(
-        tabName = "comparison",
-        h3("Comparison of Iceland and Greenland", style = "color: #007bff;"),
-        tableOutput("comparison_table")
+      tabItem(tabName = "comparison",
+        tabsetPanel(
+          tabPanel("Map and Basic Information",
+                   leafletOutput("comparisonmap"),
+                   tableOutput("comparison_table")),
+          tabPanel("Comparison of GDP and Population",
+                   tags$img(src = "comparison.png", width = "80%"),
+                   p("Based on the comparison above, for GDP, Greenland and Iceland almost started at the same point, but the growth rate for Iceland over the years is much higher than Greenland. For population data, although Greenland has 20 times area than Iceland, Greenland has a lot lower population than Iceland. For both GDP and population, Greenland's data almost did not change in the past 60 years compared to the growth of Iceland.")),
+          tabPanel("Comparison of Life Expectancy",
+                   tags$img(src = "comparison2.png", width = "80%"),
+                   p("Based on the plot above, it is clear that people in Iceland have longer life expectancy compared to people in Greenland. For the most recent data, the average life expectancy of Iceland is 82 years old, compared to 72 years old in Greenland.")),
+          tabPanel("Comparison of Intentional Homicides",
+                   tags$img(src = "comparison3.png", width = "80%"),
+                   p("Based on the graph above, Greenland obviously has more violence incidences than Iceland for the past 60 years, reaching even 30 cases per 100000 people at around 2000, about 30 times the number of cases in Iceland. For the most recent data, in 2016, Greenland has 5 cases of homicide per 100000 people, while Iceland only has one case."),
+                   p("In conclusion, from the comparison of a few different perspectives, compared to Greenland, Iceland had more people, better economy, and longer life expectancy and low intentional homicide show better social security and national happiness. Thus, Iceland is a better country to live in than Greenland."))
+        )
       ),
       tabItem(
         tabName = "swot",
-        h3("SWOT Analysis", style = "color: #007bff;"),
-        p("**Strengths:** Natural beauty, geothermal energy."),
-        p("**Weaknesses:** Small population, high dependency on imports."),
-        p("**Opportunities:** Tourism growth, renewable energy development."),
-        p("**Threats:** Climate change, economic vulnerabilities.")
+        div(
+          class = "swot-content",
+          h2("SWOT Analysis of Iceland"),
+          h3("Strength"),
+          tags$ul(
+            tags$li("Based on the GDP analysis above, Iceland GDP continues increasing, suggesting the economic prosperity. Also, based on the CIA World Factbook, Iceland is ranked 20th for GDP per capita across all countries in the world."),
+            tags$li("Based on the life expectancy analysis before, the mean life expectancy of people in Iceland is 82, suggesting the overall better life quality and healthcare for old people. Additionally, according to CIA World Factbook, Iceland's urbanization rate is 94%, reflecting the focus on economic activities, such as service, tourism and technology."),
+            tags$li("Based on the CIA World Book, 70% of the country's electricity comes from hydroeletricity, and 20% comes from geothermal energy, making Iceland a global leader in sustainable development.")
+          ),
+          h3("Weakness"),
+          tags$img(src = "icelandpopulation.png", width = "80%"),
+          tags$ul(
+            tags$li("Iceland's economy is heavily relied on the tourism and fishing, making it vulnerable to demand swings and volcanic activity."),
+            tags$li("As the median age plot shown above, Iceland is expected to have an aging population, which may lead to shrinkage of labor force and more expenditure on healthcare.")
+          ),
+          h3("Opportunities"),
+          tags$ul(
+            tags$li("As previously mentioned, since Iceland relies heavily on tourism, with the recovery of economy followed by the post-pendemic era, the visitors in Iceland will increase and further boost its economy."),
+            tags$li("Surprisingly, because of the cold weather in Iceland, it has become favorable place for building data center in recent years. With more big tech companies, such as Meta, Google and Apple started building data centers in Nordic countries, it can stimulate the economic growth and rapid development of Iceland.")
+          ),
+          h3("Threats"),
+          tags$ul(
+            tags$li("Global warming is likely to have a great impact on Iceland, since 11% of the land area of Iceland is covered in glaciers, and global warming is gradually melting those glaciers, impacting both marine life and fish industry, which is among one of major economic pillars that Iceland has."),
+            tags$li("Since data centers built in Iceland are hungry for energy, this may cause shortage in electricity generation because some of the energy generated is reserved for powering eletric cars. This shortage may lead to less electric cars to a turn to traditional fossil fuels to generate energy, which may further damage the environment.")
+          )
+        ),
+        tags$style(HTML("
+          .swot-content h2 {
+            font-size: 32px;
+          }
+          .swot-content h3 {
+            font-size: 28px;
+          }
+          .swot-content p, .swot-content li {
+            font-size: 23px;
+          }
+        "))
       )
     )
   )
@@ -140,12 +197,42 @@ server <- function(input, output, session) {
                  popup = "Reykjavik - Capital of Iceland")
   })
   
+  output$comparisonmap <- renderLeaflet({
+    leaflet(locations) %>%
+      addTiles() %>%
+      # Add markers for capitals
+      addMarkers(
+        data = locations[locations$type == "capital",],
+        lng = ~lng, 
+        lat = ~lat, 
+        popup = ~name
+      ) %>%
+      addPolylines(
+        lng = c(reykjavik_coords[1], nuuk_coords[1]),
+        lat = c(reykjavik_coords[2], nuuk_coords[2]),
+        color = "blue",
+        weight = 2
+      ) %>%
+      addLabelOnlyMarkers(
+        lng = mean(c(reykjavik_coords[1], nuuk_coords[1])) + 0.5,
+        lat = mean(c(reykjavik_coords[2], nuuk_coords[2])) + 0.5,
+        label = paste0(round(distance_km, 2), " km"),
+        labelOptions = labelOptions(noHide = TRUE, direction = "center", textOnly = TRUE)
+      ) %>%
+      # Set view to center between Iceland and Greenland
+      setView(
+        lng = mean(locations$lng), 
+        lat = mean(locations$lat), 
+        zoom = 4
+      )
+  })
+  
   # Render Comparison Table
   output$comparison_table <- renderTable({
     data.frame(
-      Metric = c("Area (sq km)", "Population", "GDP (USD Billion)", "Capital"),
-      Iceland = c("103,000", "370,000", "27", "Reykjavik"),
-      Greenland = c("2,166,086", "56,000", "3", "Nuuk")
+      Metric = c("Area (sq km)", "Capital"),
+      Iceland = c("103,000", "Reykjavik"),
+      Greenland = c("2,166,086", "Nuuk")
     )
   })
 }
